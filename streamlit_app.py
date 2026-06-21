@@ -44,11 +44,11 @@ if st.session_state.video_loaded and st.session_state.rag_system:
 
 
     for chat in st.session_state.chat_history:
-        st.markdown(f"** You:** {chat['q']}")
-        st.markdown(f"** Bot:** {chat['a']}")
+        st.markdown(f"You: {chat['q']}")
+        st.markdown(f"Bot: {chat['a']}")
 
         if chat.get("docs"):
-            st.markdown("** Sources:**")
+            st.markdown("Sources:")
             for doc in chat["docs"]:
                 start_time = format_timestamp(doc.metadata.get("start_time", 0))
                 end_time = format_timestamp(doc.metadata.get("end_time", 0))
