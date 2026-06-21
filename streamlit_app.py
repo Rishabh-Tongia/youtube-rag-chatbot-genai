@@ -1,64 +1,78 @@
 import streamlit as st
 from src.utils.time_utils import format_timestamp
-
-
-from src.chatbot import (
-    build_rag_system,
-    ask_question
-)
+from src.chatbot import build_rag_system, ask_question
 
 st.set_page_config(
-    page_title="YouTube RAG Chatbot"
+    page_title="YouTube RAG Chatbot",
+    page_icon="",
+    layout="centered"
 )
 
-st.title("🎥 YouTube RAG Chatbot")
+st.title(" YouTube RAG Chatbot")
 
-url = st.text_input(
-    "YouTube URL"
-)
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+if "video_loaded" not in st.session_state:
+    st.session_state.video_loaded = False
+
+if "rag_system" not in st.session_state:
+    st.session_state.rag_system = None
+
+url = st.text_input("YouTube URL")
 
 if st.button("Load Video"):
+    if not url:
+        st.error(" Please enter a valid YouTube URL")
+    else:
+        with st.spinner("Processing Video..."):
+            rag_system = build_rag_system(url)
 
-    with st.spinner("Processing Video..."):
+            st.session_state.rag_system = rag_system
+            st.session_state.video_loaded = True
+            st.session_state.chat_history = []  # reset chat per video
 
-        rag_system = build_rag_system(url)
+        st.success(" Video Loaded Successfully!")
+        st.info(f"Loaded URL: {url}")
 
-        st.session_state.rag_system = rag_system
-        st.session_state.video_loaded = True
 
-    st.success("Video Loaded Successfully!")
+if st.session_state.video_loaded and st.session_state.rag_system:
 
-if st.session_state.get("video_loaded"):
+    st.markdown("---")
+    st.subheader(" Chat with the Video")
 
-    question = st.text_input(
-        "Ask a Question"
-    )
 
-    if st.button("Ask"):
+    for chat in st.session_state.chat_history:
+        st.markdown(f"** You:** {chat['q']}")
+        st.markdown(f"** Bot:** {chat['a']}")
 
-        with st.spinner("Generating Answer..."):
+        if chat.get("docs"):
+            st.markdown("** Sources:**")
+            for doc in chat["docs"]:
+                start_time = format_timestamp(doc.metadata.get("start_time", 0))
+                end_time = format_timestamp(doc.metadata.get("end_time", 0))
+                st.markdown(f"- `{start_time} → {end_time}`")
 
-            answer, docs = ask_question(
-                question,
-                st.session_state.rag_system
-            )
+        st.markdown("---")
 
-        st.subheader("Answer")
+    question = st.text_input("Your Question", key="question_input")
 
-        st.write(answer)
+    if st.button("Ask Question"):
+        if not question:
+            st.warning(" Please enter a question")
+        else:
+            with st.spinner("Generating Answer..."):
+                answer, docs = ask_question(
+                    question,
+                    st.session_state.rag_system
+                )
 
-        st.subheader("Sources")
+            st.session_state.chat_history.append({
+                "q": question,
+                "a": answer,
+                "docs": docs
+            })
 
-        for doc in docs:
-
-            start_time = format_timestamp(
-                doc.metadata["start_time"]
-            )
-
-            end_time = format_timestamp(
-                doc.metadata["end_time"]
-            )
-
-            st.write(
-                f"📌 {start_time} - {end_time}"
-            )
+            # clear input by rerun trick
+            st.rerun()
